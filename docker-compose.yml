@@ -1,0 +1,37 @@
+version: '3'
+services:
+  # Service pour la base de données MySQL
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: database_development
+      MYSQL_USER: root
+      MYSQL_PASSWORD: toor
+    ports:
+      - "3306:3306"
+
+  # Service pour le backend Node.js
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: db_user
+      DB_PASSWORD: db_password
+      DB_NAME: database_name
+
+  # Service pour le frontend
+  frontend:
+    build: ./frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
