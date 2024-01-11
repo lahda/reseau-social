@@ -1,59 +1,40 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_REGISTRY_URL = 'https://hub.docker.com/repository/create?namespace=alphonsine'
-        DOCKER_IMAGE_NAME = 'votre_image_docker'
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        AWS_DEFAULT_REGION = 'paris'
-        DOCKER_COMPOSE_FILE = 'docker-compose.production.yml'
-        SSH_PRIVATE_KEY = credentials('votre_cle_ssh')
-        EC2_USER = 'ubuntu'
-        EC2_HOST = 'votre_adresse_ip'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Clone repository') {
             steps {
-                checkout scm
+                git 'https://github.com/lahda/reseau-social.git'
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Build Docker image') {
             steps {
                 script {
-                    sh "docker build -t $DOCKER_REGISTRY_URL/$DOCKER_IMAGE_NAME:${BUILD_NUMBER} ."
-                    sh "docker push $DOCKER_REGISTRY_URL/$DOCKER_IMAGE_NAME:${BUILD_NUMBER}"
+                    docker.build("reseau social:${env.BUILD_NUMBER}")
                 }
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Push Docker image') {
             steps {
-                // Étape pour déployer l'application sur EC2
                 script {
-                    // Utilisez SSH pour vous connecter à votre instance EC2 et effectuer le déploiement
-                    sshagent(['votre_cle_ssh']) {
-                        sh "ssh -o StrictHostKeyChecking=no -i votre_cle_ssh ec2-user@votre_adresse_ip 'docker pull $DOCKER_REGISTRY_URL/$DOCKER_IMAGE_NAME:$BUILD_NUMBER && docker-compose -f docker-compose.production.yml up -d'"
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        docker.image("reseau social:${env.BUILD_NUMBER}").push()
                     }
-                        }
-                    } else {
-                        error "Le fichier $DOCKER_COMPOSE_FILE est introuvable à la racine du projet."
+                }
+            }
+        }
+
+        stage('Deploy to AWS EC2') {
+            steps {
+                script {
+                    sshagent(['clejenskins']) {
+                        sh "scp -o StrictHostKeyChecking=no -i path/to/clejenskins.pem docker-compose.yml ssh -i "clejenskins.pem" ubuntu@ec2-13-39-51-55:/home/ubuntu/"
+                        sh "ssh -o StrictHostKeyChecking=no -i path/to/clejenskins.pem ubuntu@ec2-13-39-51-55 'docker-compose up -d'"
                     }
                 }
             }
         }
     }
-
-    post {
-        always {
-            cleanWs()
-        }
-    }
-}
-
-def fileExists(filename) {
-    def file = new File(filename)
-    return file.exists()
 }
