@@ -1,0 +1,22 @@
+version: '3'
+services:
+  app:
+    image: https://hub.docker.com/repositories/alphonsine/votre_image_docker:${BUILD_NUMBER}
+    ports:
+      - "80:80"
+    environment:
+      NODE_ENV: production
+    restart: always
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: database_production
+      MYSQL_USER: root
+      MYSQL_PASSWORD: toor
+    networks:
+      - production_network
+
+networks:
+  production_network:
+    driver: bridge
